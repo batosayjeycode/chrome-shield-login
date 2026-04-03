@@ -1,0 +1,182 @@
+@use 'variables' as *;
+
+// =============================================================================
+// MIXINS
+// =============================================================================
+
+// --- Layout ------------------------------------------------------------------
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+@mixin flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+// --- Glass Card --------------------------------------------------------------
+@mixin glass-card {
+  background: $color-bg-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-xl;
+  box-shadow: $shadow-md, inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+// --- Buttons -----------------------------------------------------------------
+@mixin btn-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $space-2;
+  width: 100%;
+  padding: $space-3 + 2px $space-6;
+  border: none;
+  border-radius: $radius-lg;
+  font-family: $font-sans;
+  font-size: $font-size-base;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all $transition-base;
+  position: relative;
+  overflow: hidden;
+  outline: none;
+
+  &:focus-visible {
+    outline: 2px solid $color-primary;
+    outline-offset: 2px;
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+}
+
+@mixin btn-primary {
+  @include btn-base;
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-hover 100%);
+  color: $color-bg-base;
+  box-shadow: 0 4px 15px $color-primary-glow;
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(135deg, $color-primary-hover 0%, $color-primary-active 100%);
+    box-shadow: 0 6px 20px $color-primary-glow;
+    transform: translateY(-1px);
+  }
+}
+
+@mixin btn-success {
+  @include btn-base;
+  background: linear-gradient(135deg, $color-success 0%, $color-success-hover 100%);
+  color: #0a2615;
+  box-shadow: 0 4px 15px $color-success-glow;
+
+  &:hover:not(:disabled) {
+    box-shadow: 0 6px 24px $color-success-glow;
+    transform: translateY(-1px);
+  }
+}
+
+@mixin btn-danger {
+  @include btn-base;
+  background: linear-gradient(135deg, $color-danger 0%, $color-danger-hover 100%);
+  color: #2d0a10;
+  box-shadow: 0 4px 15px $color-danger-glow;
+
+  &:hover:not(:disabled) {
+    box-shadow: 0 6px 24px $color-danger-glow;
+    transform: translateY(-1px);
+  }
+}
+
+@mixin btn-ghost {
+  @include btn-base;
+  background: transparent;
+  color: $color-text-muted;
+  border: 1px solid $color-border;
+
+  &:hover:not(:disabled) {
+    background: $color-primary-subtle;
+    color: $color-primary;
+    border-color: $color-border-hover;
+  }
+}
+
+// --- Input Field -------------------------------------------------------------
+@mixin input-field {
+  width: 100%;
+  padding: $space-3 $space-4;
+  background: $color-bg-surface-2;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  color: $color-text-primary;
+  font-family: $font-sans;
+  font-size: $font-size-base;
+  transition: all $transition-fast;
+  outline: none;
+  box-sizing: border-box;
+
+  &::placeholder {
+    color: $color-text-subtle;
+  }
+
+  &:hover {
+    border-color: $color-border-hover;
+    background: $color-bg-surface-3;
+  }
+
+  &:focus {
+    border-color: $color-primary;
+    background: $color-bg-surface-3;
+    box-shadow: 0 0 0 3px $color-primary-glow;
+  }
+}
+
+// --- Pulse Animation ---------------------------------------------------------
+@mixin pulse-dot($color) {
+  width: 10px;
+  height: 10px;
+  border-radius: $radius-full;
+  background: $color;
+  box-shadow: 0 0 0 0 rgba($color, 0.4);
+  animation: pulse-ring 1.8s infinite;
+
+  @keyframes pulse-ring {
+    0%   { box-shadow: 0 0 0 0 rgba(134, 239, 172, 0.5); }
+    70%  { box-shadow: 0 0 0 8px rgba(134, 239, 172, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(134, 239, 172, 0); }
+  }
+}
+
+// --- Shimmer -----------------------------------------------------------------
+@mixin shimmer-text {
+  background: linear-gradient(
+    90deg,
+    $color-primary 0%,
+    $color-text-primary 50%,
+    $color-primary 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 3s linear infinite;
+
+  @keyframes shimmer {
+    to { background-position: 200% center; }
+  }
+}
