@@ -5,6 +5,7 @@
       v-if="currentView === 'checkin'"
       key="checkin"
       :get-remaining-session-ms="getRemainingSessionMs"
+      :get-expires-at="getExpiresAt"
       :is-session-valid="isSessionValid"
       @check-in="handleCheckIn"
       @go-login="handleGoLogin"
@@ -37,6 +38,7 @@ const {
   checkIn,
   checkOut,
   getCheckInTimestamp,
+  getExpiresAt,
   refreshState,
   getRemainingSessionMs,
   isSessionValid,
@@ -63,9 +65,9 @@ function handleGoLogin() {
   currentView.value = 'login'
 }
 
-// Called after LoginView submit — login() already checks in, go straight to active
-function handleLogin(username, password) {
-  login(username, password)
+// Called after LoginView submit — receives access_token + expiry from Shield API
+function handleLogin(username, accessToken, expiresAt) {
+  login(username, accessToken, expiresAt)
   checkInTimestamp.value = getCheckInTimestamp()
   currentView.value = 'active'
 }

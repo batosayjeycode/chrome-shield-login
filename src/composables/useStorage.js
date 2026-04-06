@@ -3,11 +3,13 @@
 // =============================================================================
 
 const KEYS = {
-  LOGIN_TIMESTAMP:   'shield_login_timestamp',
-  CHECKIN_TIMESTAMP: 'shield_checkin_timestamp',
-  IS_LOGGED_IN:      'shield_is_logged_in',
-  IS_CHECKED_IN:     'shield_is_checked_in',
-  USERNAME:          'shield_username',
+  LOGIN_TIMESTAMP:        'shield_login_timestamp',
+  CHECKIN_TIMESTAMP:      'shield_checkin_timestamp',
+  IS_LOGGED_IN:           'shield_is_logged_in',
+  IS_CHECKED_IN:          'shield_is_checked_in',
+  USERNAME:               'shield_username',
+  ACCESS_TOKEN:           'shield_access_token',
+  ACCESS_TOKEN_EXPIRES_AT: 'shield_access_token_expires_at',
 }
 
 /**

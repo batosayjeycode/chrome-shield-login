@@ -90,6 +90,14 @@
           </div>
         </div>
 
+        <!-- Error message -->
+        <div v-if="errorMsg" class="error-msg" role="alert">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          {{ errorMsg }}
+        </div>
+
         <!-- Submit button -->
         <button
           id="btn-submit-login"
@@ -109,25 +117,60 @@
 <script setup>
 import { ref } from 'vue'
 
-// v1.1.0: After emitting 'login', App.vue calls login() which also does checkIn(),
-// then routes directly to ActiveSessionView.
+// v1.2.0: Calls the Shield API; emits access_token on success.
 const emit = defineEmits(['login'])
 
-const username = ref('')
-const password = ref('')
+const API_URL = 'https://shield-api.sociolla.info/auth/login'
+const SOURCE  = 'hrms-web-desktop'
+
+const username    = ref('')
+const password    = ref('')
 const showPassword = ref(false)
-const isLoading = ref(false)
+const isLoading   = ref(false)
+const errorMsg    = ref('')
 
 async function handleSubmit() {
   if (!username.value || !password.value) return
 
   isLoading.value = true
+  errorMsg.value  = ''
 
-  // Simulate brief loading for UX (no real validation)
-  await new Promise((resolve) => setTimeout(resolve, 600))
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json, text/plain, */*',
+        'content-type': 'application/json',
+        'soc-platform': SOURCE,
+      },
+      body: JSON.stringify({
+        email:    username.value,
+        password: password.value,
+        source:   SOURCE,
+      }),
+    })
 
-  emit('login', username.value, password.value)
-  isLoading.value = false
+    const data = await response.json()
+
+    if (!response.ok) {
+      // Surface the API error message when available
+      errorMsg.value = data?.message || `Login failed (${response.status})`
+      return
+    }
+
+    const { accessToken, accessTokenExpiresAt } = data?.data ?? {}
+    if (!accessToken) {
+      errorMsg.value = 'No access token in response.'
+      return
+    }
+
+    emit('login', username.value, accessToken, accessTokenExpiresAt)
+  } catch (err) {
+    errorMsg.value = 'Network error — please check your connection.'
+    console.error('[Shield] Login error:', err)
+  } finally {
+    isLoading.value = false
+  }
 }
 </script>
 
@@ -272,6 +315,25 @@ async function handleSubmit() {
 
   &:hover {
     color: $color-primary;
+  }
+}
+
+// --- Error Message -----------------------------------------------------------
+.error-msg {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  padding: $space-2 $space-3;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: $radius-md;
+  color: #f87171;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  line-height: 1.4;
+
+  svg {
+    flex-shrink: 0;
   }
 }
 

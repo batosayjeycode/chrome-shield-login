@@ -29,11 +29,37 @@
       <!-- Session expire info — only shown if session exists -->
       <div v-if="hasSession" class="session-info">
         <div class="session-dot" />
-        <span class="session-label">Session expires in <strong>{{ remainingLabel }}</strong></span>
+        <span class="session-label">
+          Session expires at
+          <strong class="session-datetime">{{ expiryLabel }}</strong>
+        </span>
       </div>
       <div v-else class="session-info session-info--none">
         <div class="session-dot session-dot--muted" />
         <span class="session-label">No active session</span>
+      </div>
+
+      <!-- Countdown — only shown if session exists -->
+      <div v-if="hasSession" class="countdown">
+        <div class="countdown-unit">
+          <span class="countdown-value">{{ countdownParts.days }}</span>
+          <span class="countdown-label">Days</span>
+        </div>
+        <span class="countdown-sep">:</span>
+        <div class="countdown-unit">
+          <span class="countdown-value">{{ countdownParts.hours }}</span>
+          <span class="countdown-label">Hours</span>
+        </div>
+        <span class="countdown-sep">:</span>
+        <div class="countdown-unit">
+          <span class="countdown-value">{{ countdownParts.minutes }}</span>
+          <span class="countdown-label">Minutes</span>
+        </div>
+        <span class="countdown-sep">:</span>
+        <div class="countdown-unit">
+          <span class="countdown-value">{{ countdownParts.seconds }}</span>
+          <span class="countdown-label">Seconds</span>
+        </div>
       </div>
 
       <!-- Check In Button -->
@@ -56,6 +82,10 @@ const props = defineProps({
     type: Function,
     required: true,
   },
+  getExpiresAt: {
+    type: Function,
+    required: true,
+  },
   isSessionValid: {
     type: Function,
     required: true,
@@ -70,17 +100,47 @@ let intervalId = null
 
 const hasSession = computed(() => remainingMs.value > 0)
 
-const remainingLabel = computed(() => {
-  const ms = remainingMs.value
-  if (ms <= 0) return '0:00'
-  const minutes = Math.floor(ms / 60000)
-  const seconds = Math.floor((ms % 60000) / 1000)
-  return `${minutes}:${String(seconds).padStart(2, '0')}`
+// Months abbreviation array for formatting
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+
+/**
+ * Format the stored accessTokenExpiresAt as "dd/mmm/yyyy  hh:mm:ss" (local time).
+ */
+const expiryLabel = computed(() => {
+  const iso = props.getExpiresAt()
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (isNaN(d)) return '—'
+  const dd  = String(d.getDate()).padStart(2, '0')
+  const mmm = MONTHS[d.getMonth()]
+  const yyyy = d.getFullYear()
+  const hh  = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  const ss  = String(d.getSeconds()).padStart(2, '0')
+  return `${dd}/${mmm}/${yyyy}  ${hh}:${min}:${ss}`
 })
 
 function updateRemaining() {
   remainingMs.value = props.getRemainingSessionMs()
 }
+
+/**
+ * Break remainingMs into Days / Hours / Minutes / Seconds parts.
+ */
+const countdownParts = computed(() => {
+  const ms = Math.max(0, remainingMs.value)
+  const totalSeconds = Math.floor(ms / 1000)
+  const days    = Math.floor(totalSeconds / 86400)
+  const hours   = Math.floor((totalSeconds % 86400) / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+  return {
+    days:    String(days).padStart(2, '0'),
+    hours:   String(hours).padStart(2, '0'),
+    minutes: String(minutes).padStart(2, '0'),
+    seconds: String(seconds).padStart(2, '0'),
+  }
+})
 
 /**
  * v1.1.0 — Core routing logic on Check In button click:
@@ -219,15 +279,16 @@ onUnmounted(() => {
 // --- Session Info ------------------------------------------------------------
 .session-info {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: $space-2;
   background: $color-bg-surface-2;
   border: 1px solid $color-border;
-  border-radius: $radius-full;
-  padding: $space-2 $space-4;
+  border-radius: $radius-lg;
+  padding: $space-3 $space-4;
 
   &--none {
     opacity: 0.6;
+    align-items: center;
   }
 }
 
@@ -237,10 +298,13 @@ onUnmounted(() => {
   border-radius: $radius-full;
   background: $color-primary;
   animation: blink 1.5s ease-in-out infinite;
+  margin-top: 3px; // align dot with first text line
+  flex-shrink: 0;
 
   &--muted {
     background: $color-text-muted;
     animation: none;
+    margin-top: 0;
   }
 
   @keyframes blink {
@@ -250,13 +314,66 @@ onUnmounted(() => {
 }
 
 .session-label {
+  display: flex;
+  flex-direction: column;
+  gap: $space-1;
   font-size: $font-size-xs;
   color: $color-text-muted;
+  line-height: 1.4;
+}
 
-  strong {
-    color: $color-primary;
-    font-weight: $font-weight-semibold;
-  }
+.session-datetime {
+  color: $color-primary;
+  font-weight: $font-weight-semibold;
+  font-size: $font-size-xs;
+  letter-spacing: 0.01em;
+}
+
+// --- Countdown ---------------------------------------------------------------
+.countdown {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $space-2;
+  width: 100%;
+}
+
+.countdown-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: $color-bg-surface-2;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  padding: $space-2 $space-3;
+  min-width: 52px;
+}
+
+.countdown-value {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  color: $color-primary;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.countdown-label {
+  font-size: 9px;
+  font-weight: $font-weight-medium;
+  color: $color-text-muted;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.countdown-sep {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  color: $color-text-muted;
+  line-height: 1;
+  margin-bottom: $space-4; // push up to align with numbers, not labels
+  opacity: 0.5;
 }
 
 // --- Button ------------------------------------------------------------------

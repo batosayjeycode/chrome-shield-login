@@ -6,7 +6,8 @@
 import { ref } from 'vue'
 import { getItem, setItem, clearShieldData, KEYS } from './useStorage.js'
 
-const SESSION_DURATION = 15 * 60 * 1000 // 15 minutes in ms
+// Fallback TTL if the API doesn't provide an expiry (should not happen in normal flow)
+const FALLBACK_SESSION_DURATION = 15 * 60 * 1000 // 15 minutes in ms
 
 /**
  * Checks if the stored session is still valid.
@@ -14,9 +15,15 @@ const SESSION_DURATION = 15 * 60 * 1000 // 15 minutes in ms
  * Exported so CheckInView can call it when the Check In button is clicked.
  */
 export function isSessionValid() {
+  const expiresAt = getItem(KEYS.ACCESS_TOKEN_EXPIRES_AT)
+  if (expiresAt) {
+    // Use the real expiry from the API
+    return Date.now() < new Date(expiresAt).getTime()
+  }
+  // Fallback: 15-minute window from login timestamp
   const loginTimestamp = getItem(KEYS.LOGIN_TIMESTAMP)
   if (!loginTimestamp) return false
-  return Date.now() - loginTimestamp < SESSION_DURATION
+  return Date.now() - loginTimestamp < FALLBACK_SESSION_DURATION
 }
 
 /**
@@ -40,14 +47,17 @@ export function useAuth() {
 
   /**
    * Perform login + check-in in one step.
-   * v1.1.0: After successful login the user goes directly to ActiveSessionView.
-   * No credential validation (testing mode).
+   * v1.2.0: Accepts access_token + accessTokenExpiresAt from Shield API.
    */
-  function login(username, _password) {
+  function login(username, accessToken, accessTokenExpiresAt) {
     const now = Date.now()
     setItem(KEYS.IS_LOGGED_IN, true)
     setItem(KEYS.LOGIN_TIMESTAMP, now)
     setItem(KEYS.USERNAME, username)
+    setItem(KEYS.ACCESS_TOKEN, accessToken)
+    if (accessTokenExpiresAt) {
+      setItem(KEYS.ACCESS_TOKEN_EXPIRES_AT, accessTokenExpiresAt)
+    }
     // Immediately check in
     setItem(KEYS.IS_CHECKED_IN, true)
     setItem(KEYS.CHECKIN_TIMESTAMP, now)
@@ -94,10 +104,21 @@ export function useAuth() {
    * Get remaining session time in milliseconds.
    */
   function getRemainingSessionMs() {
+    const expiresAt = getItem(KEYS.ACCESS_TOKEN_EXPIRES_AT)
+    if (expiresAt) {
+      return Math.max(0, new Date(expiresAt).getTime() - Date.now())
+    }
+    // Fallback: 15-minute window
     const loginTimestamp = getItem(KEYS.LOGIN_TIMESTAMP)
     if (!loginTimestamp) return 0
-    const remaining = SESSION_DURATION - (Date.now() - loginTimestamp)
-    return Math.max(0, remaining)
+    return Math.max(0, FALLBACK_SESSION_DURATION - (Date.now() - loginTimestamp))
+  }
+
+  /**
+   * Get the stored access token expiry as an ISO string, or null.
+   */
+  function getExpiresAt() {
+    return getItem(KEYS.ACCESS_TOKEN_EXPIRES_AT)
   }
 
   return {
@@ -106,6 +127,7 @@ export function useAuth() {
     checkIn,
     checkOut,
     getCheckInTimestamp,
+    getExpiresAt,
     refreshState,
     getRemainingSessionMs,
     isSessionValid,
