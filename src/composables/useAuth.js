@@ -1,5 +1,6 @@
 // =============================================================================
 // useAuth.js — Session management composable
+// v1.1.0: login() now immediately performs check-in; isSessionValid() is exported.
 // =============================================================================
 
 import { ref } from 'vue'
@@ -10,8 +11,9 @@ const SESSION_DURATION = 15 * 60 * 1000 // 15 minutes in ms
 /**
  * Checks if the stored session is still valid.
  * Returns false if no loginTimestamp exists or if 15 minutes have elapsed.
+ * Exported so CheckInView can call it when the Check In button is clicked.
  */
-function isSessionValid() {
+export function isSessionValid() {
   const loginTimestamp = getItem(KEYS.LOGIN_TIMESTAMP)
   if (!loginTimestamp) return false
   return Date.now() - loginTimestamp < SESSION_DURATION
@@ -22,51 +24,55 @@ function isSessionValid() {
  * If session has expired, clears all Shield data and returns logged-out state.
  */
 function readAuthState() {
-  const isLoggedIn = getItem(KEYS.IS_LOGGED_IN) === true
   const isCheckedIn = getItem(KEYS.IS_CHECKED_IN) === true
 
-  // If was logged in but session expired → clear everything
-  if (isLoggedIn && !isSessionValid()) {
+  // If there was a login but session expired → clear everything
+  if (isCheckedIn && !isSessionValid()) {
     clearShieldData()
-    return { isLoggedIn: false, isCheckedIn: false }
+    return { isCheckedIn: false }
   }
 
-  return { isLoggedIn, isCheckedIn }
+  return { isCheckedIn }
 }
 
 export function useAuth() {
   const authState = ref(readAuthState())
 
   /**
-   * Perform login: store credentials timestamp and update state.
+   * Perform login + check-in in one step.
+   * v1.1.0: After successful login the user goes directly to ActiveSessionView.
    * No credential validation (testing mode).
    */
   function login(username, _password) {
     const now = Date.now()
     setItem(KEYS.IS_LOGGED_IN, true)
-    setItem(KEYS.IS_CHECKED_IN, false)
     setItem(KEYS.LOGIN_TIMESTAMP, now)
     setItem(KEYS.USERNAME, username)
-    authState.value = { isLoggedIn: true, isCheckedIn: false }
+    // Immediately check in
+    setItem(KEYS.IS_CHECKED_IN, true)
+    setItem(KEYS.CHECKIN_TIMESTAMP, now)
+    authState.value = { isCheckedIn: true }
   }
 
   /**
    * Perform check-in: store check-in timestamp and update state.
+   * Used when session is still valid and user clicks Check In.
    */
   function checkIn() {
     const now = Date.now()
     setItem(KEYS.IS_CHECKED_IN, true)
     setItem(KEYS.CHECKIN_TIMESTAMP, now)
-    authState.value = { ...authState.value, isCheckedIn: true }
+    authState.value = { isCheckedIn: true }
   }
 
   /**
-   * Perform check-out: clear check-in data but keep session alive.
+   * Perform check-out: clear check-in data only, return to CheckInView.
+   * Login session data (loginTimestamp, isLoggedIn) is preserved.
    */
   function checkOut() {
     setItem(KEYS.IS_CHECKED_IN, false)
     localStorage.removeItem(KEYS.CHECKIN_TIMESTAMP)
-    authState.value = { ...authState.value, isCheckedIn: false }
+    authState.value = { isCheckedIn: false }
   }
 
   /**
@@ -102,5 +108,6 @@ export function useAuth() {
     getCheckInTimestamp,
     refreshState,
     getRemainingSessionMs,
+    isSessionValid,
   }
 }

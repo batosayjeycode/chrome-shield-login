@@ -26,10 +26,14 @@
         <p class="subheading">Tap <strong>Check In</strong> to begin your session</p>
       </div>
 
-      <!-- Session expire info -->
-      <div class="session-info">
+      <!-- Session expire info — only shown if session exists -->
+      <div v-if="hasSession" class="session-info">
         <div class="session-dot" />
         <span class="session-label">Session expires in <strong>{{ remainingLabel }}</strong></span>
+      </div>
+      <div v-else class="session-info session-info--none">
+        <div class="session-dot session-dot--muted" />
+        <span class="session-label">No active session</span>
       </div>
 
       <!-- Check In Button -->
@@ -45,33 +49,50 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps({
   getRemainingSessionMs: {
     type: Function,
     required: true,
   },
+  isSessionValid: {
+    type: Function,
+    required: true,
+  },
 })
 
-const emit = defineEmits(['check-in'])
+// v1.1.0: emit 'check-in' when session is valid, 'go-login' when expired/no session
+const emit = defineEmits(['check-in', 'go-login'])
 
-const remainingLabel = ref('')
+const remainingMs = ref(props.getRemainingSessionMs())
 let intervalId = null
 
-function updateRemaining() {
-  const ms = props.getRemainingSessionMs()
-  if (ms <= 0) {
-    remainingLabel.value = '0:00'
-    return
-  }
+const hasSession = computed(() => remainingMs.value > 0)
+
+const remainingLabel = computed(() => {
+  const ms = remainingMs.value
+  if (ms <= 0) return '0:00'
   const minutes = Math.floor(ms / 60000)
   const seconds = Math.floor((ms % 60000) / 1000)
-  remainingLabel.value = `${minutes}:${String(seconds).padStart(2, '0')}`
+  return `${minutes}:${String(seconds).padStart(2, '0')}`
+})
+
+function updateRemaining() {
+  remainingMs.value = props.getRemainingSessionMs()
 }
 
+/**
+ * v1.1.0 — Core routing logic on Check In button click:
+ * - If session is still valid → emit 'check-in' (go to ActiveSessionView directly)
+ * - If session expired or no session → emit 'go-login' (show LoginView)
+ */
 function handleCheckIn() {
-  emit('check-in')
+  if (props.isSessionValid()) {
+    emit('check-in')
+  } else {
+    emit('go-login')
+  }
 }
 
 onMounted(() => {
@@ -204,6 +225,10 @@ onUnmounted(() => {
   border: 1px solid $color-border;
   border-radius: $radius-full;
   padding: $space-2 $space-4;
+
+  &--none {
+    opacity: 0.6;
+  }
 }
 
 .session-dot {
@@ -212,6 +237,11 @@ onUnmounted(() => {
   border-radius: $radius-full;
   background: $color-primary;
   animation: blink 1.5s ease-in-out infinite;
+
+  &--muted {
+    background: $color-text-muted;
+    animation: none;
+  }
 
   @keyframes blink {
     0%, 100% { opacity: 1; }

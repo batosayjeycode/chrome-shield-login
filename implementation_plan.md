@@ -1,15 +1,18 @@
 # Implementation Plan
 ## Chrome Extension — Shield Login
 
-**Versi:** 1.0.0  
-**Tanggal:** 4 April 2026  
-**Status:** ✅ Implemented
+**Versi:** 1.1.0  
+**Tanggal:** 6 April 2026  
+**Status:** 🔄 Revised — Flow Update
 
 ---
 
 ## Ringkasan
 
 Chrome Extension Shield Login dibangun menggunakan Vue 3 + SCSS + Vite dengan tema **pink pastel dark mode**. Extension mengelola absensi Check In / Check Out dengan session expiry 15 menit dan penyimpanan data di `localStorage`. Tidak ada backend — seluruh state dikelola secara lokal di browser.
+
+**v1.1.0 — Flow Update:**
+Flow navigasi antar halaman direvisi. Halaman pertama yang ditampilkan adalah **CheckInView** (bukan LoginView). LoginView hanya muncul ketika tombol "Check In" diklik dalam kondisi session expired atau belum pernah login. Setelah login berhasil, pengguna langsung masuk ke **ActiveSessionView** (bukan CheckInView). Check Out mengembalikan pengguna ke **CheckInView**.
 
 ---
 
@@ -22,6 +25,10 @@ Chrome Extension Shield Login dibangun menggunakan Vue 3 + SCSS + Vite dengan te
 | Reset check-in saat session expired | Ya (via `clearShieldData()`) |
 | Ikon extension | Dibuat dari scratch (AI-generated) |
 | Bahasa teks UI | English |
+| Halaman pertama saat extension dibuka | CheckInView (bukan LoginView) |
+| Login hanya muncul saat | Tombol Check In diklik + session expired/belum login |
+| Setelah login berhasil | Langsung masuk ActiveSessionView (bukan CheckInView) |
+| Check Out mengarahkan ke | CheckInView (bukan LoginView) |
 
 ---
 
@@ -47,8 +54,8 @@ Chrome Extension Shield Login dibangun menggunakan Vue 3 + SCSS + Vite dengan te
 
 ```
 App.vue (state router — computed currentView)
-├── LoginView.vue      ← useAuth.js
-├── CheckInView.vue    ← useAuth.js
+├── CheckInView.vue    ← useAuth.js  [HALAMAN PERTAMA]
+├── LoginView.vue      ← useAuth.js  [hanya jika session expired / belum login]
 └── ActiveSessionView.vue
          ├── useTimer.js
          └── useAuth.js
@@ -57,6 +64,24 @@ App.vue (state router — computed currentView)
 ```
 
 **Tidak menggunakan vue-router** — navigasi antar halaman dilakukan via `computed currentView` di `App.vue` dan `<component :is>` + Vue `<Transition>`.
+
+### Alur Navigasi v1.1.0
+
+```
+[Extension Dibuka]
+        ↓
+ isCheckedIn === true? → YES → ActiveSessionView
+        ↓ NO
+   CheckInView
+        ↓ (klik "Check In")
+ session valid (< 15 mnt)? → YES → ActiveSessionView
+        ↓ NO
+   LoginView
+        ↓ (submit berhasil → simpan login + checkIn)
+   ActiveSessionView
+        ↓ (klik "Check Out" + konfirmasi Ya)
+   CheckInView
+```
 
 ---
 
@@ -118,12 +143,15 @@ const SESSION_DURATION = 15 * 60 * 1000  // 15 menit
 function readAuthState() { ... }
 
 // Exposed:
-login(username, password)   // simpan loginTimestamp, tidak validasi
-checkIn()                   // simpan checkInTimestamp
-checkOut()                  // hapus checkInTimestamp, set isCheckedIn: false
+login(username, password)   // simpan loginTimestamp + checkInTimestamp (langsung check in)
+checkIn()                   // simpan checkInTimestamp (dipakai jika session masih valid)
+checkOut()                  // hapus checkInTimestamp + isCheckedIn → kembali ke CheckInView
+isSessionValid()            // cek apakah loginTimestamp masih dalam 15 menit
 refreshState()              // re-evaluate, dipanggil di onMounted App.vue
 getRemainingSessionMs()     // untuk countdown di CheckInView
 ```
+
+> **Perubahan v1.1.0:** Fungsi `login()` kini sekaligus melakukan check in (simpan `checkInTimestamp` dan set `isCheckedIn: true`) agar setelah login langsung masuk ke `ActiveSessionView`.
 
 ### `useTimer.js`
 ```js
@@ -136,16 +164,20 @@ reset()                  // stop + reset display
 ```
 Format: `pad(hours):pad(minutes):pad(seconds)` — selalu 2 digit.
 
-### `App.vue` — State Machine
+### `App.vue` — State Machine (v1.1.0)
 ```js
 const currentView = computed(() => {
-  const { isLoggedIn, isCheckedIn } = authState.value
-  if (!isLoggedIn) return 'login'
-  if (!isCheckedIn) return 'checkin'
-  return 'active'
+  const { isCheckedIn } = authState.value
+  // Prioritas 1: sudah check in → tampilkan timer
+  if (isCheckedIn) return 'active'
+  // Prioritas 2: belum check in → tampilkan halaman check in
+  return 'checkin'
+  // LoginView ditampilkan oleh CheckInView sendiri saat tombol diklik
 })
 ```
 `refreshState()` dipanggil `onMounted` untuk cek expired saat popup dibuka.
+
+> **Perubahan v1.1.0:** State machine tidak lagi me-route ke `'login'` secara langsung dari `App.vue`. LoginView kini ditangani oleh `CheckInView` — ketika tombol "Check In" diklik dan session tidak valid, `currentView` diset ke `'login'` dari dalam `CheckInView`.
 
 ### `LoginView.vue`
 - Shield SVG logo inline (pink gradient)
@@ -153,10 +185,23 @@ const currentView = computed(() => {
 - Loading state 600ms (simulasi UX) sebelum emit `login`
 - Disabled submit jika username/password kosong
 
-### `CheckInView.vue`
+### `CheckInView.vue` (v1.1.0 — Halaman Pertama)
 - Animated pulse rings (CSS keyframes) pada clock icon
 - Session countdown (`getRemainingSessionMs`) update setiap detik via `setInterval`
 - Cleanup `onUnmounted`
+- **[NEW v1.1.0]** Saat tombol "Check In" diklik:
+  - Jika `isSessionValid() === true` → langsung emit `go-active` (set `isCheckedIn: true` + pindah ke `ActiveSessionView`)
+  - Jika `isSessionValid() === false` → emit `go-login` (tampilkan `LoginView`)
+
+### `LoginView.vue` (v1.1.0 — Hanya Ditampilkan Saat Session Expired)
+- Shield SVG logo inline (pink gradient)
+- Toggle show/hide password
+- Loading state 600ms (simulasi UX)
+- Disabled submit jika username/password kosong
+- **[CHANGED v1.1.0]** Setelah submit berhasil:
+  - Simpan `loginTimestamp` + `checkInTimestamp` sekaligus
+  - Set `isLoggedIn: true` + `isCheckedIn: true`
+  - Emit `login-success` → `App.vue` redirect ke `ActiveSessionView`
 
 ### `ActiveSessionView.vue`
 - Timer `#timer-display` — font JetBrains Mono 48px, pink gradient text + glow
@@ -164,6 +209,7 @@ const currentView = computed(() => {
 - Info: "Checked in at HH:MM"
 - `window.confirm()` untuk dialog Check Out
 - Timer auto-stop via `onUnmounted` di `useTimer`
+- **[CHANGED v1.1.0]** Check Out: hapus data checkin → redirect ke `CheckInView` (bukan LoginView)
 
 ---
 
@@ -229,9 +275,9 @@ npm run build
 
 ---
 
-## Verification Results
+## Verification Results (v1.0.0 — Sebelum Revisi)
 
-Semua Acceptance Criteria telah diverifikasi via browser testing:
+Semua Acceptance Criteria v1.0.0 telah diverifikasi via browser testing:
 
 | AC | Hasil |
 |---|---|
@@ -242,3 +288,21 @@ Semua Acceptance Criteria telah diverifikasi via browser testing:
 | AC-05: Check Out confirm dialog + reset state | ✅ Pass |
 
 Build output: `dist/index.html`, `manifest.json`, `icons/`, `assets/popup.js`, `assets/popup.css` — semua lengkap.
+
+---
+
+## Rencana Verifikasi v1.1.0
+
+Setelah implementasi flow baru selesai, verifikasi berikut perlu dilakukan:
+
+| AC | Skenario Uji | Status |
+|---|---|---|
+| AC-01 | Buka extension saat `isCheckedIn = false` → CheckInView tampil | 🔄 Pending |
+| AC-01 | Buka extension saat `isCheckedIn = true` → ActiveSessionView tampil | 🔄 Pending |
+| AC-02 | Klik Check In saat session valid → langsung ke ActiveSessionView | 🔄 Pending |
+| AC-02 | Klik Check In saat session expired → LoginView tampil | 🔄 Pending |
+| AC-03 | Submit login → simpan loginTimestamp + checkInTimestamp → ActiveSessionView | 🔄 Pending |
+| AC-04 | Session expiry diperiksa saat tombol Check In diklik | 🔄 Pending |
+| AC-05 | Timer berjalan real-time di ActiveSessionView | 🔄 Pending |
+| AC-06 | Check Out → konfirmasi Ya → redirect ke CheckInView | 🔄 Pending |
+| AC-06 | Check Out → konfirmasi Tidak → timer tetap berjalan | 🔄 Pending |

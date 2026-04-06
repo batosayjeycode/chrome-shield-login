@@ -109,6 +109,8 @@
 <script setup>
 import { ref } from 'vue'
 
+// v1.1.0: After emitting 'login', App.vue calls login() which also does checkIn(),
+// then routes directly to ActiveSessionView.
 const emit = defineEmits(['login'])
 
 const username = ref('')
