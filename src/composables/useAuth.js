@@ -1,6 +1,6 @@
 // =============================================================================
 // useAuth.js — Session management composable
-// v1.1.0: login() now immediately performs check-in; isSessionValid() is exported.
+// v1.3.0: Added saved credentials management and auto-login flow.
 // =============================================================================
 
 import { ref } from 'vue'
@@ -121,6 +121,32 @@ export function useAuth() {
     return getItem(KEYS.ACCESS_TOKEN_EXPIRES_AT)
   }
 
+  /**
+   * Save credentials to localStorage (persists independently of session).
+   */
+  function saveCredentials(username, password) {
+    setItem(KEYS.SAVED_USERNAME, username)
+    setItem(KEYS.SAVED_PASSWORD, password)
+  }
+
+  /**
+   * Get saved credentials if they exist.
+   * Returns { username, password } or null.
+   */
+  function getSavedCredentials() {
+    const username = getItem(KEYS.SAVED_USERNAME)
+    const password = getItem(KEYS.SAVED_PASSWORD)
+    if (!username || !password) return null
+    return { username, password }
+  }
+
+  /**
+   * Returns true if saved credentials exist.
+   */
+  function hasSavedCredentials() {
+    return !!(getItem(KEYS.SAVED_USERNAME) && getItem(KEYS.SAVED_PASSWORD))
+  }
+
   return {
     authState,
     login,
@@ -131,5 +157,8 @@ export function useAuth() {
     refreshState,
     getRemainingSessionMs,
     isSessionValid,
+    saveCredentials,
+    getSavedCredentials,
+    hasSavedCredentials,
   }
 }

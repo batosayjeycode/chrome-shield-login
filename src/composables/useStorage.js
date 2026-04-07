@@ -10,6 +10,9 @@ const KEYS = {
   USERNAME:               'shield_username',
   ACCESS_TOKEN:           'shield_access_token',
   ACCESS_TOKEN_EXPIRES_AT: 'shield_access_token_expires_at',
+  // Saved credentials — persist independently of session
+  SAVED_USERNAME:         'shield_saved_username',
+  SAVED_PASSWORD:         'shield_saved_password',
 }
 
 /**

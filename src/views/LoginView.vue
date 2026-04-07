@@ -6,6 +6,22 @@
 
     <!-- Card -->
     <div class="login-card">
+      <!-- Top bar: back button -->
+      <div class="top-bar">
+        <button
+          id="btn-back-to-checkin"
+          type="button"
+          class="btn-back"
+          @click="emit('go-checkin')"
+          aria-label="Back to Check In"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+          Back to Check In
+        </button>
+      </div>
+
       <!-- Logo -->
       <div class="logo-wrap">
         <div class="logo-icon">
@@ -25,15 +41,23 @@
 
       <!-- Heading -->
       <div class="heading-wrap">
-        <h2 class="heading">Welcome Back</h2>
-        <p class="subheading">Sign in to track your session</p>
+        <h2 class="heading">Login Settings</h2>
+        <p class="subheading">Save your credentials for quick check-in</p>
+      </div>
+
+      <!-- Saved status badge -->
+      <div v-if="hasSaved" class="saved-badge">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+        Credentials saved
       </div>
 
       <!-- Form -->
-      <form class="login-form" @submit.prevent="handleSubmit" novalidate>
+      <form class="login-form" @submit.prevent novalidate>
         <!-- Username field -->
         <div class="field-group">
-          <label class="field-label" for="input-username">Username</label>
+          <label class="field-label" for="input-username">Username / Email</label>
           <div class="input-wrap">
             <span class="input-icon" aria-hidden="true">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -46,7 +70,7 @@
               v-model="username"
               type="text"
               class="field-input"
-              placeholder="Enter your username"
+              placeholder="Enter your username or email"
               autocomplete="username"
               required
             />
@@ -98,42 +122,95 @@
           {{ errorMsg }}
         </div>
 
-        <!-- Submit button -->
-        <button
-          id="btn-submit-login"
-          type="submit"
-          class="btn-submit"
-          :class="{ loading: isLoading }"
-          :disabled="isLoading || !username || !password"
-        >
-          <span v-if="!isLoading">Sign In</span>
-          <span v-else class="spinner" />
-        </button>
+        <!-- Success message after test login -->
+        <div v-if="testSuccess" class="success-msg" role="status">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          Test login berhasil! Klik Save untuk menyimpan.
+        </div>
+
+        <!-- Action buttons -->
+        <div class="btn-group">
+          <!-- Test Login button -->
+          <button
+            id="btn-test-login"
+            type="button"
+            class="btn-test"
+            :class="{ loading: isLoading }"
+            :disabled="isLoading || !username || !password"
+            @click="handleTestLogin"
+          >
+            <span v-if="!isLoading" class="btn-test__content">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <polyline points="10 8 16 12 10 16" />
+              </svg>
+              Test
+            </span>
+            <span v-else class="spinner" />
+          </button>
+
+          <!-- Save button -->
+          <button
+            id="btn-save-credentials"
+            type="button"
+            class="btn-save"
+            :disabled="!username || !password"
+            @click="handleSave"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+              <polyline points="17 21 17 13 7 13 7 21" />
+              <polyline points="7 3 7 8 15 8" />
+            </svg>
+            Save
+          </button>
+        </div>
       </form>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 
-// v1.2.0: Calls the Shield API; emits access_token on success.
-const emit = defineEmits(['login'])
+const props = defineProps({
+  savedCredentials: {
+    type: Object,
+    default: null,
+  },
+})
+
+// Emits: go-checkin when user clicks back, save when user saves, login when test succeeds
+const emit = defineEmits(['go-checkin', 'save', 'login'])
 
 const API_URL = 'https://shield-api.sociolla.info/auth/login'
 const SOURCE  = 'hrms-web-desktop'
 
-const username    = ref('')
-const password    = ref('')
+const username     = ref('')
+const password     = ref('')
 const showPassword = ref(false)
-const isLoading   = ref(false)
-const errorMsg    = ref('')
+const isLoading    = ref(false)
+const errorMsg     = ref('')
+const testSuccess  = ref(false)
+const hasSaved     = ref(false)
 
-async function handleSubmit() {
+// Pre-fill form with saved credentials if any
+onMounted(() => {
+  if (props.savedCredentials) {
+    username.value = props.savedCredentials.username || ''
+    password.value = props.savedCredentials.password || ''
+    hasSaved.value = true
+  }
+})
+
+async function handleTestLogin() {
   if (!username.value || !password.value) return
 
-  isLoading.value = true
-  errorMsg.value  = ''
+  isLoading.value  = true
+  errorMsg.value   = ''
+  testSuccess.value = false
 
   try {
     const response = await fetch(API_URL, {
@@ -153,7 +230,6 @@ async function handleSubmit() {
     const data = await response.json()
 
     if (!response.ok) {
-      // Surface the API error message when available
       errorMsg.value = data?.message || `Login failed (${response.status})`
       return
     }
@@ -164,13 +240,24 @@ async function handleSubmit() {
       return
     }
 
-    emit('login', username.value, accessToken, accessTokenExpiresAt)
+    // Test login berhasil — emit ke parent tapi tidak navigate, user bisa simpan dulu
+    testSuccess.value = true
+    // Store the token result for potential use after save
+    emit('login-test-success', username.value, accessToken, accessTokenExpiresAt)
   } catch (err) {
     errorMsg.value = 'Network error — please check your connection.'
     console.error('[Shield] Login error:', err)
   } finally {
     isLoading.value = false
   }
+}
+
+function handleSave() {
+  if (!username.value || !password.value) return
+  hasSaved.value = true
+  testSuccess.value = false
+  errorMsg.value = ''
+  emit('save', username.value, password.value)
 }
 </script>
 
@@ -214,10 +301,38 @@ async function handleSubmit() {
   @include flex-column;
   width: 100%;
   max-width: 320px;
-  padding: $space-8 $space-6;
-  gap: $space-6;
+  padding: $space-5 $space-6 $space-8;
+  gap: $space-5;
   position: relative;
   z-index: 1;
+}
+
+// --- Top Bar -----------------------------------------------------------------
+.top-bar {
+  display: flex;
+  align-items: center;
+}
+
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: $space-1 + 2px;
+  background: none;
+  border: none;
+  color: $color-text-muted;
+  font-family: $font-sans;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  cursor: pointer;
+  padding: $space-1 $space-2;
+  border-radius: $radius-md;
+  transition: color $transition-fast, background $transition-fast;
+  letter-spacing: 0.01em;
+
+  &:hover {
+    color: $color-primary;
+    background: $color-primary-subtle;
+  }
 }
 
 // --- Logo --------------------------------------------------------------------
@@ -261,6 +376,22 @@ async function handleSubmit() {
   font-size: $font-size-sm;
   color: $color-text-muted;
   font-weight: $font-weight-regular;
+}
+
+// --- Saved Badge -------------------------------------------------------------
+.saved-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: $space-2;
+  align-self: center;
+  background: rgba(134, 239, 172, 0.08);
+  border: 1px solid rgba(134, 239, 172, 0.2);
+  border-radius: $radius-full;
+  padding: $space-1 + 2px $space-3;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  color: $color-success;
+  letter-spacing: 0.02em;
 }
 
 // --- Form --------------------------------------------------------------------
@@ -318,7 +449,7 @@ async function handleSubmit() {
   }
 }
 
-// --- Error Message -----------------------------------------------------------
+// --- Messages ----------------------------------------------------------------
 .error-msg {
   display: flex;
   align-items: center;
@@ -337,15 +468,67 @@ async function handleSubmit() {
   }
 }
 
-// --- Submit Button -----------------------------------------------------------
-.btn-submit {
-  @include btn-primary;
-  margin-top: $space-2;
+.success-msg {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  padding: $space-2 $space-3;
+  background: rgba(134, 239, 172, 0.1);
+  border: 1px solid rgba(134, 239, 172, 0.25);
+  border-radius: $radius-md;
+  color: $color-success;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  line-height: 1.4;
+
+  svg {
+    flex-shrink: 0;
+  }
+
+  strong {
+    font-weight: $font-weight-bold;
+  }
+}
+
+// --- Button Group ------------------------------------------------------------
+.btn-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $space-3;
+  margin-top: $space-1;
+}
+
+// --- Test Login Button -------------------------------------------------------
+.btn-test {
+  @include btn-base;
+  background: $color-bg-surface-2;
+  color: $color-text-secondary;
+  border: 1px solid $color-border-hover;
+  width: auto;
+
+  &:hover:not(:disabled) {
+    background: $color-primary-subtle;
+    color: $color-primary;
+    border-color: $color-primary;
+    transform: translateY(-1px);
+  }
 
   &.loading {
     cursor: wait;
     opacity: 0.8;
   }
+
+  &__content {
+    display: inline-flex;
+    align-items: center;
+    gap: $space-2;
+  }
+}
+
+// --- Save Button -------------------------------------------------------------
+.btn-save {
+  @include btn-primary;
+  width: auto;
 }
 
 .spinner {

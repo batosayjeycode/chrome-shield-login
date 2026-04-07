@@ -63,12 +63,37 @@
       </div>
 
       <!-- Check In Button -->
-      <button id="btn-check-in" class="btn-checkin" @click="handleCheckIn">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-          <polyline points="22 4 12 14.01 9 11.01" />
+      <button id="btn-check-in" class="btn-checkin" :class="{ loading: isCheckingIn }" :disabled="isCheckingIn" @click="handleCheckIn">
+        <span v-if="!isCheckingIn" class="btn-checkin__content">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+            <polyline points="22 4 12 14.01 9 11.01" />
+          </svg>
+          Check In
+        </span>
+        <span v-else class="spinner" />
+      </button>
+
+      <!-- Error message (auto-login failure) -->
+      <div v-if="checkInError" class="error-msg" role="alert">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
-        Check In
+        {{ checkInError }}
+      </div>
+
+      <!-- Edit credentials shortcut -->
+      <button
+        id="btn-edit-credentials"
+        type="button"
+        class="btn-edit-creds"
+        @click="emit('go-login')"
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h9" />
+          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+        </svg>
+        Edit Login Credentials
       </button>
     </div>
   </div>
@@ -90,12 +115,25 @@ const props = defineProps({
     type: Function,
     required: true,
   },
+  hasSavedCredentials: {
+    type: Function,
+    required: true,
+  },
+  doAutoLogin: {
+    type: Function,
+    required: true,
+  },
 })
 
-// v1.1.0: emit 'check-in' when session is valid, 'go-login' when expired/no session
-const emit = defineEmits(['check-in', 'go-login'])
+// Emits:
+//   'check-in'       — session valid, go straight to ActiveSession
+//   'go-login'       — go to LoginView (edit credentials / no saved creds)
+//   'login-success'  — auto-login succeeded, pass token data up
+const emit = defineEmits(['check-in', 'go-login', 'login-success'])
 
-const remainingMs = ref(props.getRemainingSessionMs())
+const remainingMs   = ref(props.getRemainingSessionMs())
+const isCheckingIn  = ref(false)
+const checkInError  = ref('')
 let intervalId = null
 
 const hasSession = computed(() => remainingMs.value > 0)
@@ -143,15 +181,37 @@ const countdownParts = computed(() => {
 })
 
 /**
- * v1.1.0 — Core routing logic on Check In button click:
- * - If session is still valid → emit 'check-in' (go to ActiveSessionView directly)
- * - If session expired or no session → emit 'go-login' (show LoginView)
+ * v1.3.0 — Core routing logic on Check In button click:
+ * 1. If session is still valid → emit 'check-in' (go directly to ActiveSessionView)
+ * 2. If saved credentials exist → auto-login, then emit 'login-success'
+ * 3. No saved credentials → emit 'go-login' (show LoginView)
  */
-function handleCheckIn() {
+async function handleCheckIn() {
+  checkInError.value = ''
+
   if (props.isSessionValid()) {
     emit('check-in')
-  } else {
+    return
+  }
+
+  if (!props.hasSavedCredentials()) {
     emit('go-login')
+    return
+  }
+
+  // Auto-login with saved credentials
+  isCheckingIn.value = true
+  try {
+    const result = await props.doAutoLogin()
+    if (result.success) {
+      emit('login-success', result.username, result.accessToken, result.accessTokenExpiresAt)
+    } else {
+      checkInError.value = result.error || 'Login gagal. Periksa kembali credentials Anda.'
+    }
+  } catch {
+    checkInError.value = 'Network error — please check your connection.'
+  } finally {
+    isCheckingIn.value = false
   }
 }
 
@@ -380,5 +440,76 @@ onUnmounted(() => {
 .btn-checkin {
   @include btn-success;
   width: 100%;
+
+  &.loading {
+    cursor: wait;
+    opacity: 0.8;
+  }
+
+  &__content {
+    display: inline-flex;
+    align-items: center;
+    gap: $space-2;
+  }
+}
+
+.spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(10, 38, 21, 0.3);
+  border-top-color: #0a2615;
+  border-radius: $radius-full;
+  animation: spin 0.7s linear infinite;
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+}
+
+// --- Error Message -----------------------------------------------------------
+.error-msg {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  padding: $space-2 $space-3;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: $radius-md;
+  color: #f87171;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  line-height: 1.4;
+  width: 100%;
+  box-sizing: border-box;
+
+  svg {
+    flex-shrink: 0;
+  }
+}
+
+// --- Edit Credentials Shortcut -----------------------------------------------
+.btn-edit-creds {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $space-2;
+  background: none;
+  border: none;
+  color: $color-text-muted;
+  font-family: $font-sans;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-medium;
+  cursor: pointer;
+  padding: $space-2 $space-3;
+  border-radius: $radius-md;
+  transition: color $transition-fast, background $transition-fast;
+  letter-spacing: 0.01em;
+  align-self: center;
+
+  &:hover {
+    color: $color-primary;
+    background: $color-primary-subtle;
+  }
 }
 </style>
