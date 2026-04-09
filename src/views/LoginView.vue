@@ -46,7 +46,7 @@
       </div>
 
       <!-- Saved status badge -->
-      <div v-if="hasSaved" class="saved-badge">
+      <div v-if="hasSaved && !testSuccess && !saveSuccess && !errorMsg" class="saved-badge">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="20 6 9 17 4 12" />
         </svg>
@@ -225,6 +225,7 @@ async function handleTestLogin() {
   errorMsg.value   = ''
   testSuccess.value = false
   saveSuccess.value = false
+  hasSaved.value = false
 
   try {
     const response = await fetch(API_URL, {
@@ -270,7 +271,7 @@ async function handleTestLogin() {
 function handleSave() {
   saveSuccess.value = false
   if (!username.value || !password.value) return
-  hasSaved.value = true
+  hasSaved.value = false
   testSuccess.value = false
   errorMsg.value = ''
   saveSuccess.value = true
