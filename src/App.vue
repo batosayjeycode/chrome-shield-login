@@ -153,8 +153,8 @@ async function doCheckAttendance(tokenx) {
   }
 }
 
-async function doCheckIn() {
-  const token = getAccessToken()
+async function doCheckIn(tokenx) {
+  const token = tokenx || getAccessToken()
   if (!token) return { success: false, error: 'No access token.' }
 
   try {

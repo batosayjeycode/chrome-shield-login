@@ -228,14 +228,14 @@ async function handleCheckIn() {
   try {
     const result = await props.doAutoLogin()
     if (result.success) {
-      const resultAttendance = await props.doCheckAttendance()
+      const resultAttendance = await props.doCheckAttendance(result.accessToken)
       if (resultAttendance.success) {
         const {data, isCheckedIn} = resultAttendance.data || {}
         if(isCheckedIn) {
           emit('login-success', result.username, result.accessToken, result.accessTokenExpiresAt, data.checkin_time || null)
           return
         }
-        const resultCheckIn = await props.doCheckIn()
+        const resultCheckIn = await props.doCheckIn(result.accessToken)
         if (resultCheckIn.success) {
           const {data} = resultCheckIn.data || {}
           emit('login-success', result.username, result.accessToken, result.accessTokenExpiresAt, data.checkin_time || null)
