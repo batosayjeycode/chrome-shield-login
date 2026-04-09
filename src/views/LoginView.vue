@@ -180,6 +180,10 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  doCheckAttendance: {
+    type: Function,
+    required: true,
+  }
 })
 
 // Emits: go-checkin when user clicks back, save when user saves, login when test succeeds
@@ -239,11 +243,21 @@ async function handleTestLogin() {
       errorMsg.value = 'No access token in response.'
       return
     }
+    
+    // Store the token result for potential use after save
+    const resultAttendance = await props.doCheckAttendance(accessToken)
+
+    if (!resultAttendance.success) {
+      errorMsg.value = data?.message || `Check attendance failed (${resultAttendance.status})`
+      return
+    }
 
     // Test login berhasil — emit ke parent tapi tidak navigate, user bisa simpan dulu
     testSuccess.value = true
-    // Store the token result for potential use after save
-    emit('login-test-success', username.value, accessToken, accessTokenExpiresAt)
+
+    const {data: attendanceData} = resultAttendance.data || {}
+    emit('login-test-success', username.value, accessToken, accessTokenExpiresAt, attendanceData.checkin_time || null)
+        
   } catch (err) {
     errorMsg.value = 'Network error — please check your connection.'
     console.error('[Shield] Login error:', err)

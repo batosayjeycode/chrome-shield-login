@@ -123,6 +123,10 @@ const props = defineProps({
     type: Function,
     required: true,
   },
+  doCheckAttendance: {
+    type: Function,
+    required: true,
+  }
 })
 
 // Emits:
@@ -190,7 +194,13 @@ async function handleCheckIn() {
   checkInError.value = ''
 
   if (props.isSessionValid()) {
-    emit('check-in')
+    const resultAttendance = await props.doCheckAttendance()  
+    if (resultAttendance.success) {
+      const {data} = resultAttendance.data || {}
+      emit('check-in', data.checkin_time || null)
+    } else {
+      checkInError.value = resultAttendance.error || 'Check attendance gagal. Periksa kembali credentials Anda.'
+    }
     return
   }
 
@@ -204,7 +214,13 @@ async function handleCheckIn() {
   try {
     const result = await props.doAutoLogin()
     if (result.success) {
-      emit('login-success', result.username, result.accessToken, result.accessTokenExpiresAt)
+      const resultAttendance = await props.doCheckAttendance()
+      if (resultAttendance.success) {
+        const {data} = resultAttendance.data || {}
+        emit('login-success', result.username, result.accessToken, result.accessTokenExpiresAt, data.checkin_time || null)
+      } else {
+        checkInError.value = resultAttendance.error || 'Check attendance gagal. Periksa kembali credentials Anda.'
+      }
     } else {
       checkInError.value = result.error || 'Login gagal. Periksa kembali credentials Anda.'
     }

@@ -11,7 +11,7 @@ import { ref, onUnmounted } from 'vue'
  */
 function formatTime(ms) {
   const totalSeconds = Math.floor(ms / 1000)
-  const hours   = Math.floor(totalSeconds / 3600)
+  const hours = Math.floor(totalSeconds / 3600)
   const minutes = Math.floor((totalSeconds % 3600) / 60)
   const seconds = totalSeconds % 60
 
@@ -33,11 +33,12 @@ export function useTimer() {
     stop()
 
     // Immediately set the current elapsed time
-    elapsed.value = formatTime(Date.now() - checkInTimestamp)
+    const timestamp = new Date(checkInTimestamp).getTime()
+    elapsed.value = formatTime(Date.now() - timestamp)
 
     // Then tick every second
     intervalId = setInterval(() => {
-      elapsed.value = formatTime(Date.now() - checkInTimestamp)
+      elapsed.value = formatTime(Date.now() - timestamp)
     }, 1000)
   }
 

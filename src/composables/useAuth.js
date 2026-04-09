@@ -49,7 +49,7 @@ export function useAuth() {
    * Perform login + check-in in one step.
    * v1.2.0: Accepts access_token + accessTokenExpiresAt from Shield API.
    */
-  function login(username, accessToken, accessTokenExpiresAt) {
+  function login(username, accessToken, accessTokenExpiresAt, checkinTime) {
     const now = Date.now()
     setItem(KEYS.IS_LOGGED_IN, true)
     setItem(KEYS.LOGIN_TIMESTAMP, now)
@@ -60,7 +60,7 @@ export function useAuth() {
     }
     // Immediately check in
     setItem(KEYS.IS_CHECKED_IN, true)
-    setItem(KEYS.CHECKIN_TIMESTAMP, now)
+    setItem(KEYS.CHECKIN_TIMESTAMP, checkinTime || now)
     authState.value = { isCheckedIn: true }
   }
 
@@ -68,10 +68,10 @@ export function useAuth() {
    * Perform check-in: store check-in timestamp and update state.
    * Used when session is still valid and user clicks Check In.
    */
-  function checkIn() {
+  function checkIn(checkinTime) {
     const now = Date.now()
     setItem(KEYS.IS_CHECKED_IN, true)
-    setItem(KEYS.CHECKIN_TIMESTAMP, now)
+    setItem(KEYS.CHECKIN_TIMESTAMP, checkinTime || now)
     authState.value = { isCheckedIn: true }
   }
 
@@ -140,6 +140,10 @@ export function useAuth() {
     return { username, password }
   }
 
+  function getAccessToken() {
+    return getItem(KEYS.ACCESS_TOKEN)
+  }
+
   /**
    * Returns true if saved credentials exist.
    */
@@ -160,5 +164,6 @@ export function useAuth() {
     saveCredentials,
     getSavedCredentials,
     hasSavedCredentials,
+    getAccessToken,
   }
 }
