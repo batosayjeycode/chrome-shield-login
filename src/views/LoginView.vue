@@ -130,6 +130,14 @@
           Test login berhasil! Klik Save untuk menyimpan.
         </div>
 
+        <!-- Success message after save -->
+        <div v-if="saveSuccess" class="success-msg" role="status">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          Credentials berhasil disimpan!
+        </div>
+
         <!-- Action buttons -->
         <div class="btn-group">
           <!-- Test Login button -->
@@ -187,7 +195,7 @@ const props = defineProps({
 })
 
 // Emits: go-checkin when user clicks back, save when user saves, login when test succeeds
-const emit = defineEmits(['go-checkin', 'save', 'login'])
+const emit = defineEmits(['go-checkin', 'save', 'login', 'login-test-success'])
 
 const API_URL = 'https://shield-api.sociolla.info/auth/login'
 const SOURCE  = 'hrms-web-desktop'
@@ -199,6 +207,7 @@ const isLoading    = ref(false)
 const errorMsg     = ref('')
 const testSuccess  = ref(false)
 const hasSaved     = ref(false)
+const saveSuccess  = ref(false)
 
 // Pre-fill form with saved credentials if any
 onMounted(() => {
@@ -215,6 +224,7 @@ async function handleTestLogin() {
   isLoading.value  = true
   errorMsg.value   = ''
   testSuccess.value = false
+  saveSuccess.value = false
 
   try {
     const response = await fetch(API_URL, {
@@ -243,20 +253,11 @@ async function handleTestLogin() {
       errorMsg.value = 'No access token in response.'
       return
     }
-    
-    // Store the token result for potential use after save
-    const resultAttendance = await props.doCheckAttendance(accessToken)
-
-    if (!resultAttendance.success) {
-      errorMsg.value = data?.message || `Check attendance failed (${resultAttendance.status})`
-      return
-    }
 
     // Test login berhasil — emit ke parent tapi tidak navigate, user bisa simpan dulu
     testSuccess.value = true
-
-    const {data: attendanceData} = resultAttendance.data || {}
-    emit('login-test-success', username.value, accessToken, accessTokenExpiresAt, attendanceData.checkin_time || null)
+    
+    emit('login-test-success', username.value, accessToken, accessTokenExpiresAt)
         
   } catch (err) {
     errorMsg.value = 'Network error — please check your connection.'
@@ -267,10 +268,12 @@ async function handleTestLogin() {
 }
 
 function handleSave() {
+  saveSuccess.value = false
   if (!username.value || !password.value) return
   hasSaved.value = true
   testSuccess.value = false
   errorMsg.value = ''
+  saveSuccess.value = true
   emit('save', username.value, password.value)
 }
 </script>

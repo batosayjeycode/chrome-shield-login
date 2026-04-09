@@ -28,6 +28,8 @@
       v-else-if="currentView === 'active'"
       key="active"
       :check-in-timestamp="checkInTimestamp"
+      :do-check-attendance="doCheckAttendance"
+      :do-check-out="doCheckOut"
       @check-out="handleCheckOut"
     />
   </Transition>
@@ -44,6 +46,7 @@ import ActiveSessionView from '@/views/ActiveSessionView.vue'
 const API_URL = 'https://shield-api.sociolla.info/auth/login'
 const API_URL_CHECKIN = 'https://shield-api.sociolla.info/employee-attendances/check-in'
 const API_URL_CHECK_ATTENDANCE = 'https://shield-api.sociolla.info/employee-attendances/today'
+const API_URL_CHECK_OUT = 'https://shield-api.sociolla.info/employee-attendances/check-out'
 const CHECKIN_TZ_OFFSET = -420
 const CHECKIN_LATITUDE = -6.188779671454878
 const CHECKIN_LONGITUDE = 106.73833265261926
@@ -63,6 +66,7 @@ const {
   getSavedCredentials,
   hasSavedCredentials,
   getAccessToken,
+  loginCredentials,
 } = useAuth()
 
 // Reactive check-in timestamp for passing to ActiveSessionView
@@ -181,6 +185,38 @@ async function doCheckIn() {
   }
 }
 
+async function doCheckOut() {
+  const token = getAccessToken()
+  if (!token) return { success: false, error: 'No access token.' }
+
+  try {
+    const response = await fetch(API_URL_CHECK_OUT, {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json, text/plain, */*',
+        'content-type': 'application/json',
+        'soc-platform': SOURCE,
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        tz_offset: CHECKIN_TZ_OFFSET,
+        latitude: CHECKIN_LATITUDE,
+        longitude: CHECKIN_LONGITUDE,
+      }),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      return { success: false, error: data?.message || `Check out gagal (${response.status})` }
+    }
+
+    return { success: true, data: data?.data ?? {} }
+  } catch {
+    return { success: false, error: 'Network error — please check your connection.' }
+  }
+}
+
 // --- Event Handlers ----------------------------------------------------------
 
 /** Called when CheckInView detects session still valid → skip login, go active */
@@ -214,13 +250,10 @@ function handleSaveCredentials(username, password) {
 
   // If we have a pending login result (after successful Test Login), apply it immediately
   if (pendingLogin.value) {
-    const { username: u, accessToken, accessTokenExpiresAt, checkinTime } = pendingLogin.value
-    login(u, accessToken, accessTokenExpiresAt, checkinTime)
-    checkInTimestamp.value = getCheckInTimestamp()
+    const { username: u, accessToken, accessTokenExpiresAt } = pendingLogin.value
+    loginCredentials(u, accessToken, accessTokenExpiresAt)
     pendingLogin.value = null
-    currentView.value = 'active'
   }
-  // else: just saved, stay in LoginView so user can test or go back
 }
 
 /**
@@ -228,8 +261,8 @@ function handleSaveCredentials(username, password) {
  * We store the pending login data but do NOT navigate yet —
  * the user still needs to click "Save" to persist and activate.
  */
-function handleLoginTestSuccess(username, accessToken, accessTokenExpiresAt, checkinTime) {
-  pendingLogin.value = { username, accessToken, accessTokenExpiresAt, checkinTime }
+function handleLoginTestSuccess(username, accessToken, accessTokenExpiresAt) {
+  pendingLogin.value = { username, accessToken, accessTokenExpiresAt }
 }
 
 /** Called when Check Out is confirmed in ActiveSessionView → back to CheckInView */

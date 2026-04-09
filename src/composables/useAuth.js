@@ -64,6 +64,18 @@ export function useAuth() {
     authState.value = { isCheckedIn: true }
   }
 
+  function loginCredentials(username, accessToken, accessTokenExpiresAt) {
+    const now = Date.now()
+    setItem(KEYS.IS_LOGGED_IN, true)
+    setItem(KEYS.LOGIN_TIMESTAMP, now)
+    setItem(KEYS.USERNAME, username)
+    setItem(KEYS.ACCESS_TOKEN, accessToken)
+    if (accessTokenExpiresAt) {
+      setItem(KEYS.ACCESS_TOKEN_EXPIRES_AT, accessTokenExpiresAt)
+    }
+    authState.value = { isCheckedIn: false }
+  }
+
   /**
    * Perform check-in: store check-in timestamp and update state.
    * Used when session is still valid and user clicks Check In.
@@ -165,5 +177,6 @@ export function useAuth() {
     getSavedCredentials,
     hasSavedCredentials,
     getAccessToken,
+    loginCredentials,
   }
 }

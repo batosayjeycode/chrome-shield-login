@@ -126,7 +126,11 @@ const props = defineProps({
   doCheckAttendance: {
     type: Function,
     required: true,
-  }
+  },
+  doCheckIn: {
+    type: Function,
+    required: true,
+  },
 })
 
 // Emits:
@@ -196,11 +200,21 @@ async function handleCheckIn() {
   if (props.isSessionValid()) {
     const resultAttendance = await props.doCheckAttendance()  
     if (resultAttendance.success) {
-      const {data} = resultAttendance.data || {}
-      emit('check-in', data.checkin_time || null)
-    } else {
-      checkInError.value = resultAttendance.error || 'Check attendance gagal. Periksa kembali credentials Anda.'
+      const {data, isCheckedIn} = resultAttendance.data || {}
+      if(isCheckedIn) {
+        emit('check-in', data.checkin_time || null)
+        return
+      }
+      const resultCheckIn = await props.doCheckIn()
+      if (resultCheckIn.success) {
+        const {data} = resultCheckIn.data || {}
+        emit('check-in', data.checkin_time || null)
+        return
+      }
+      checkInError.value = resultCheckIn.error || 'Check In gagal. Periksa kembali credentials Anda.'
+      return
     }
+    checkInError.value = resultAttendance.error || 'Check attendance gagal. Periksa kembali credentials Anda.'
     return
   }
 
@@ -216,14 +230,24 @@ async function handleCheckIn() {
     if (result.success) {
       const resultAttendance = await props.doCheckAttendance()
       if (resultAttendance.success) {
-        const {data} = resultAttendance.data || {}
-        emit('login-success', result.username, result.accessToken, result.accessTokenExpiresAt, data.checkin_time || null)
-      } else {
-        checkInError.value = resultAttendance.error || 'Check attendance gagal. Periksa kembali credentials Anda.'
+        const {data, isCheckedIn} = resultAttendance.data || {}
+        if(isCheckedIn) {
+          emit('login-success', result.username, result.accessToken, result.accessTokenExpiresAt, data.checkin_time || null)
+          return
+        }
+        const resultCheckIn = await props.doCheckIn()
+        if (resultCheckIn.success) {
+          const {data} = resultCheckIn.data || {}
+          emit('login-success', result.username, result.accessToken, result.accessTokenExpiresAt, data.checkin_time || null)
+          return
+        }
+        checkInError.value = resultCheckIn.error || 'Check In gagal. Periksa kembali credentials Anda.'
+        return
       }
-    } else {
-      checkInError.value = result.error || 'Login gagal. Periksa kembali credentials Anda.'
+      checkInError.value = resultAttendance.error || 'Check attendance gagal. Periksa kembali credentials Anda.'
+      return
     }
+    checkInError.value = result.error || 'Login gagal. Periksa kembali credentials Anda.'
   } catch {
     checkInError.value = 'Network error — please check your connection.'
   } finally {

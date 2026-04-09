@@ -54,7 +54,15 @@ import { useTimer } from '@/composables/useTimer.js'
 
 const props = defineProps({
   checkInTimestamp: {
-    type: Number,
+    type: [String, Number],
+    required: true,
+  },
+  doCheckAttendance: {
+    type: Function,
+    required: true,
+  },
+  doCheckOut: {
+    type: Function,
     required: true,
   },
 })
@@ -70,9 +78,24 @@ const checkInTimeLabel = computed(() => {
   return `${h}:${m}`
 })
 
-function handleCheckOut() {
+async function handleCheckOut() {
   const confirmed = window.confirm('Are you sure you want to Check Out?')
   if (confirmed) {
+    const resultAttendance = await props.doCheckAttendance()
+    if (!resultAttendance.success) {
+      window.alert(resultAttendance.error)
+      return
+    }
+    const {isCheckedIn} = resultAttendance.data || {}
+    if (!isCheckedIn) {
+      emit('check-out')
+      return
+    }
+    const resultCheckOut = await props.doCheckOut()
+    if (!resultCheckOut.success) {
+      window.alert(resultCheckOut.error)
+      return
+    }
     emit('check-out')
   }
 }
