@@ -202,13 +202,13 @@ async function handleCheckIn() {
     if (resultAttendance.success) {
       const {data, isCheckedIn} = resultAttendance.data || {}
       if(isCheckedIn) {
-        emit('check-in', data.checkin_time || null)
+        emit('check-in', (data?.checkin_time || null))
         return
       }
       const resultCheckIn = await props.doCheckIn()
       if (resultCheckIn.success) {
         const {data} = resultCheckIn.data || {}
-        emit('check-in', data.checkin_time || null)
+        emit('check-in', (data?.checkin_time || null))
         return
       }
       checkInError.value = resultCheckIn.error || 'Check In gagal. Periksa kembali credentials Anda.'
@@ -232,13 +232,13 @@ async function handleCheckIn() {
       if (resultAttendance.success) {
         const {data, isCheckedIn} = resultAttendance.data || {}
         if(isCheckedIn) {
-          emit('login-success', result.username, result.accessToken, result.accessTokenExpiresAt, data.checkin_time || null)
+          emit('login-success', result.username, result.accessToken, result.accessTokenExpiresAt, (data?.checkin_time || null))
           return
         }
         const resultCheckIn = await props.doCheckIn(result.accessToken)
         if (resultCheckIn.success) {
           const {data} = resultCheckIn.data || {}
-          emit('login-success', result.username, result.accessToken, result.accessTokenExpiresAt, data.checkin_time || null)
+          emit('login-success', result.username, result.accessToken, result.accessTokenExpiresAt, (data?.checkin_time || null))
           return
         }
         checkInError.value = resultCheckIn.error || 'Check In gagal. Periksa kembali credentials Anda.'
