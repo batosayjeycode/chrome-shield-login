@@ -36,7 +36,7 @@
       </div>
 
       <!-- Check Out Button -->
-      <button id="btn-check-out" class="btn-checkout" @click="handleCheckOut">
+      <button id="btn-check-out" class="btn-checkout" @click="openConfirmModal">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
           <polyline points="16 17 21 12 16 7" />
@@ -45,11 +45,59 @@
         Check Out
       </button>
     </div>
+
+    <!-- Confirm Modal -->
+    <Transition name="modal-fade">
+      <div v-if="showConfirmModal" class="modal-overlay" @click.self="closeConfirmModal">
+        <div class="modal-box">
+          <div class="modal-icon modal-icon--warn">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+          </div>
+          <h2 class="modal-title">Check Out?</h2>
+          <p class="modal-message">Are you sure you want to end your current session?</p>
+          <div class="modal-actions">
+            <button id="modal-btn-cancel" class="modal-btn modal-btn--cancel" @click="closeConfirmModal">
+              Cancel
+            </button>
+            <button id="modal-btn-confirm" class="modal-btn modal-btn--confirm" :disabled="isLoading" @click="handleCheckOut">
+              <span v-if="isLoading" class="spinner" />
+              <span v-else>Yes, Check Out</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Alert Modal -->
+    <Transition name="modal-fade">
+      <div v-if="showAlertModal" class="modal-overlay" @click.self="closeAlertModal">
+        <div class="modal-box">
+          <div class="modal-icon modal-icon--error">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+          </div>
+          <h2 class="modal-title">Something went wrong</h2>
+          <p class="modal-message">{{ alertMessage }}</p>
+          <div class="modal-actions">
+            <button id="modal-btn-ok" class="modal-btn modal-btn--confirm" @click="closeAlertModal">
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup>
-import { onMounted, computed } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useTimer } from '@/composables/useTimer.js'
 
 const props = defineProps({
@@ -71,6 +119,12 @@ const emit = defineEmits(['check-out'])
 
 const { elapsed, start } = useTimer()
 
+// Modal state
+const showConfirmModal = ref(false)
+const showAlertModal = ref(false)
+const alertMessage = ref('')
+const isLoading = ref(false)
+
 const checkInTimeLabel = computed(() => {
   const date = new Date(props.checkInTimestamp)
   const h = String(date.getHours()).padStart(2, '0')
@@ -78,25 +132,49 @@ const checkInTimeLabel = computed(() => {
   return `${h}:${m}`
 })
 
+function openConfirmModal() {
+  showConfirmModal.value = true
+}
+
+function closeConfirmModal() {
+  if (isLoading.value) return
+  showConfirmModal.value = false
+}
+
+function showAlert(message) {
+  alertMessage.value = message
+  showAlertModal.value = true
+}
+
+function closeAlertModal() {
+  showAlertModal.value = false
+  alertMessage.value = ''
+}
+
 async function handleCheckOut() {
-  const confirmed = window.confirm('Are you sure you want to Check Out?')
-  if (confirmed) {
+  isLoading.value = true
+  try {
     const resultAttendance = await props.doCheckAttendance()
     if (!resultAttendance.success) {
-      window.alert(resultAttendance.error)
+      closeConfirmModal()
+      showAlert(resultAttendance.error)
       return
     }
-    const {isCheckedIn} = resultAttendance.data || {}
+    const { isCheckedIn } = resultAttendance.data || {}
     if (!isCheckedIn) {
       emit('check-out')
       return
     }
     const resultCheckOut = await props.doCheckOut()
     if (!resultCheckOut.success) {
-      window.alert(resultCheckOut.error)
+      closeConfirmModal()
+      showAlert(resultCheckOut.error)
       return
     }
     emit('check-out')
+  } finally {
+    isLoading.value = false
+    showConfirmModal.value = false
   }
 }
 
@@ -263,5 +341,163 @@ onMounted(() => {
 .btn-checkout {
   @include btn-danger;
   width: 100%;
+}
+
+// --- Modal Overlay -----------------------------------------------------------
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(28, 15, 24, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  padding: $space-4;
+}
+
+// --- Modal Box ---------------------------------------------------------------
+.modal-box {
+  background: $color-bg-surface;
+  border: 1px solid $color-border-hover;
+  border-radius: $radius-xl;
+  box-shadow: $shadow-lg, $shadow-pink;
+  padding: $space-6;
+  width: 100%;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $space-4;
+  text-align: center;
+}
+
+// --- Modal Icon --------------------------------------------------------------
+.modal-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: $radius-full;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  &--warn {
+    background: rgba(253, 164, 175, 0.12);
+    border: 1px solid rgba(253, 164, 175, 0.25);
+    color: $color-danger;
+    box-shadow: 0 0 20px rgba(253, 164, 175, 0.15);
+  }
+
+  &--error {
+    background: rgba(253, 164, 175, 0.12);
+    border: 1px solid rgba(253, 164, 175, 0.25);
+    color: $color-danger;
+    box-shadow: 0 0 20px rgba(253, 164, 175, 0.15);
+  }
+}
+
+// --- Modal Text --------------------------------------------------------------
+.modal-title {
+  font-size: $font-size-md;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+  margin: 0;
+  line-height: $line-height-tight;
+}
+
+.modal-message {
+  font-size: $font-size-sm;
+  color: $color-text-muted;
+  margin: 0;
+  line-height: $line-height-normal;
+}
+
+// --- Modal Actions -----------------------------------------------------------
+.modal-actions {
+  display: flex;
+  gap: $space-3;
+  width: 100%;
+  margin-top: $space-1;
+}
+
+.modal-btn {
+  flex: 1;
+  padding: $space-2 + 2px $space-4;
+  border-radius: $radius-md;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  font-family: $font-sans;
+  cursor: pointer;
+  border: none;
+  transition: background $transition-fast, color $transition-fast, box-shadow $transition-fast, opacity $transition-fast;
+  line-height: 1;
+
+  &--cancel {
+    background: $color-bg-surface-2;
+    color: $color-text-muted;
+    border: 1px solid $color-border;
+
+    &:hover {
+      background: $color-bg-surface-3;
+      color: $color-text-secondary;
+      border-color: $color-border-hover;
+    }
+  }
+
+  &--confirm {
+    background: linear-gradient(135deg, $color-danger 0%, $color-danger-hover 100%);
+    color: $color-bg-base;
+    box-shadow: 0 0 12px $color-danger-glow;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: $space-2;
+
+    &:hover:not(:disabled) {
+      box-shadow: 0 0 20px $color-danger-glow;
+      filter: brightness(1.08);
+    }
+
+    &:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+  }
+}
+
+// --- Spinner -----------------------------------------------------------------
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(28, 15, 24, 0.35);
+  border-top-color: $color-bg-base;
+  border-radius: $radius-full;
+  animation: spin 0.65s linear infinite;
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+}
+
+// --- Modal Transition --------------------------------------------------------
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity $transition-base;
+
+  .modal-box {
+    transition: transform $transition-spring, opacity $transition-base;
+  }
+}
+
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+
+  .modal-box {
+    transform: scale(0.88) translateY(8px);
+    opacity: 0;
+  }
 }
 </style>
