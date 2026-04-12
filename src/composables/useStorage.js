@@ -3,16 +3,16 @@
 // =============================================================================
 
 const KEYS = {
-  LOGIN_TIMESTAMP:        'shield_login_timestamp',
-  CHECKIN_TIMESTAMP:      'shield_checkin_timestamp',
-  IS_LOGGED_IN:           'shield_is_logged_in',
-  IS_CHECKED_IN:          'shield_is_checked_in',
-  USERNAME:               'shield_username',
-  ACCESS_TOKEN:           'shield_access_token',
+  LOGIN_TIMESTAMP: 'shield_login_timestamp',
+  CHECKIN_TIMESTAMP: 'shield_checkin_timestamp',
+  IS_LOGGED_IN: 'shield_is_logged_in',
+  IS_CHECKED_IN: 'shield_is_checked_in',
+  USERNAME: 'shield_username',
+  ACCESS_TOKEN: 'shield_access_token',
   ACCESS_TOKEN_EXPIRES_AT: 'shield_access_token_expires_at',
   // Saved credentials — persist independently of session
-  SAVED_USERNAME:         'shield_saved_username',
-  SAVED_PASSWORD:         'shield_saved_password',
+  SAVED_USERNAME: 'shield_saved_username',
+  SAVED_PASSWORD: 'shield_saved_password',
 }
 
 /**
@@ -51,7 +51,9 @@ export function removeItem(key) {
  * Clear all Shield-related keys from localStorage.
  */
 export function clearShieldData() {
-  Object.values(KEYS).forEach((key) => localStorage.removeItem(key))
+  const { SAVED_USERNAME, SAVED_PASSWORD, ...rest } = KEYS;
+  const values = Object.values(rest);
+  values.forEach((key) => localStorage.removeItem(key))
 }
 
 export { KEYS }
