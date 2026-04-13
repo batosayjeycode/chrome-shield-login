@@ -19,8 +19,9 @@ export function isSessionValid() {
   // Check if checkin timestamp exists
   const checkinTimestamp = getItem(KEYS.CHECKIN_TIMESTAMP)
   if (checkinTimestamp) {
+    const timestamp = new Date(checkinTimestamp).getTime()
     // Use the real expiry from the API
-    return Date.now() - checkinTimestamp < FALLBACK_CHECKIN_DURATION
+    return Date.now() - timestamp < FALLBACK_CHECKIN_DURATION
   } else {
     // Check if access token expiry exists
     const expiresAt = getItem(KEYS.ACCESS_TOKEN_EXPIRES_AT)
