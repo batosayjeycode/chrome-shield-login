@@ -65,7 +65,7 @@
             </button>
             <button id="modal-btn-confirm" class="modal-btn modal-btn--confirm" :disabled="isLoading" @click="handleCheckOut">
               <span v-if="isLoading" class="spinner" />
-              <span v-else>Yes, Check Out</span>
+              <span v-else>Yes</span>
             </button>
           </div>
         </div>
