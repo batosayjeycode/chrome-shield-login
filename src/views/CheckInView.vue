@@ -131,6 +131,10 @@ const props = defineProps({
     type: Function,
     required: true,
   },
+  getCheckInTimestamp: {
+    type: Function,
+    required: true,
+  },
 })
 
 // Emits:
@@ -198,6 +202,11 @@ async function handleCheckIn() {
   checkInError.value = ''
 
   if (props.isSessionValid()) {
+    const checkinTimestamp = props.getCheckInTimestamp()
+    if (checkinTimestamp) {
+        emit('check-in', checkinTimestamp)
+        return
+    }
     const resultAttendance = await props.doCheckAttendance()  
     if (resultAttendance.success) {
       const {data, isCheckedIn} = resultAttendance.data || {}

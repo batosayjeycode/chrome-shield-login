@@ -8,6 +8,7 @@
       :get-expires-at="getExpiresAt"
       :is-session-valid="isSessionValid"
       :has-saved-credentials="hasSavedCredentials"
+      :get-checkin-timestamp="getCheckInTimestamp"
       :do-auto-login="doAutoLogin"
       :do-check-attendance="doCheckAttendance"
       :do-check-in="doCheckIn"
