@@ -4,10 +4,11 @@
 // =============================================================================
 
 import { ref } from 'vue'
-import { getItem, setItem, clearShieldData, KEYS } from './useStorage.js'
+import { getItem, setItem, clearShieldData, KEYS, clearShieldCheckInData } from './useStorage.js'
 
 // Fallback TTL if the API doesn't provide an expiry (should not happen in normal flow)
 const FALLBACK_SESSION_DURATION = 15 * 60 * 1000 // 15 minutes in ms
+const FALLBACK_CHECKIN_DURATION = 18 * 60 * 60 * 1000; // 18 hours in ms
 
 /**
  * Checks if the stored session is still valid.
@@ -15,11 +16,20 @@ const FALLBACK_SESSION_DURATION = 15 * 60 * 1000 // 15 minutes in ms
  * Exported so CheckInView can call it when the Check In button is clicked.
  */
 export function isSessionValid() {
+  // Check if checkin timestamp exists
+  const checkinTimestamp = getItem(KEYS.CHECKIN_TIMESTAMP)
+  if (checkinTimestamp) {
+    // Use the real expiry from the API
+    return Date.now() - checkinTimestamp < FALLBACK_CHECKIN_DURATION
+  }
+
+  // Check if access token expiry exists
   const expiresAt = getItem(KEYS.ACCESS_TOKEN_EXPIRES_AT)
   if (expiresAt) {
     // Use the real expiry from the API
     return Date.now() < new Date(expiresAt).getTime()
   }
+
   // Fallback: 15-minute window from login timestamp
   const loginTimestamp = getItem(KEYS.LOGIN_TIMESTAMP)
   if (!loginTimestamp) return false
@@ -35,7 +45,12 @@ function readAuthState() {
 
   // If there was a login but session expired → clear everything
   if (isCheckedIn && !isSessionValid()) {
-    clearShieldData()
+    const checkinTimestamp = getItem(KEYS.CHECKIN_TIMESTAMP)
+    if (checkinTimestamp) {
+      clearShieldCheckInData()
+    } else {
+      clearShieldData()
+    }
     return { isCheckedIn: false }
   }
 

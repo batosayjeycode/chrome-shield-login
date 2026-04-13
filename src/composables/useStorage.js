@@ -56,4 +56,10 @@ export function clearShieldData() {
   values.forEach((key) => localStorage.removeItem(key))
 }
 
+export function clearShieldCheckInData() {
+  const { CHECKIN_TIMESTAMP, IS_CHECKED_IN } = KEYS;
+  localStorage.removeItem(CHECKIN_TIMESTAMP)
+  localStorage.removeItem(IS_CHECKED_IN)
+}
+
 export { KEYS }
