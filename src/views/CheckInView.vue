@@ -131,7 +131,7 @@ const props = defineProps({
     type: Function,
     required: true,
   },
-  getCheckInTimestamp: {
+  getCheckinTimestamp: {
     type: Function,
     required: true,
   },
@@ -202,7 +202,7 @@ async function handleCheckIn() {
   checkInError.value = ''
 
   if (props.isSessionValid()) {
-    const checkinTimestamp = props.getCheckInTimestamp()
+    const checkinTimestamp = props.getCheckinTimestamp()
     if (checkinTimestamp) {
         emit('check-in', checkinTimestamp)
         return
