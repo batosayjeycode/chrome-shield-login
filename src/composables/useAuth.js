@@ -4,7 +4,7 @@
 // =============================================================================
 
 import { ref } from 'vue'
-import { getItem, setItem, clearShieldData, KEYS, clearShieldCheckInData } from './useStorage.js'
+import { getItem, setItem, clearShieldData, KEYS } from './useStorage.js'
 
 // Fallback TTL if the API doesn't provide an expiry (should not happen in normal flow)
 const FALLBACK_SESSION_DURATION = 15 * 60 * 1000 // 15 minutes in ms
@@ -21,13 +21,13 @@ export function isSessionValid() {
   if (checkinTimestamp) {
     // Use the real expiry from the API
     return Date.now() - checkinTimestamp < FALLBACK_CHECKIN_DURATION
-  }
-
-  // Check if access token expiry exists
-  const expiresAt = getItem(KEYS.ACCESS_TOKEN_EXPIRES_AT)
-  if (expiresAt) {
-    // Use the real expiry from the API
-    return Date.now() < new Date(expiresAt).getTime()
+  } else {
+    // Check if access token expiry exists
+    const expiresAt = getItem(KEYS.ACCESS_TOKEN_EXPIRES_AT)
+    if (expiresAt) {
+      // Use the real expiry from the API
+      return Date.now() < new Date(expiresAt).getTime()
+    }
   }
 
   // Fallback: 15-minute window from login timestamp
@@ -45,12 +45,7 @@ function readAuthState() {
 
   // If there was a login but session expired → clear everything
   if (isCheckedIn && !isSessionValid()) {
-    const checkinTimestamp = getItem(KEYS.CHECKIN_TIMESTAMP)
-    if (checkinTimestamp) {
-      clearShieldCheckInData()
-    } else {
-      clearShieldData()
-    }
+    clearShieldData()
     return { isCheckedIn: false }
   }
 
@@ -107,8 +102,8 @@ export function useAuth() {
    * Login session data (loginTimestamp, isLoggedIn) is preserved.
    */
   function checkOut() {
+    clearShieldData()
     setItem(KEYS.IS_CHECKED_IN, false)
-    localStorage.removeItem(KEYS.CHECKIN_TIMESTAMP)
     authState.value = { isCheckedIn: false }
   }
 
